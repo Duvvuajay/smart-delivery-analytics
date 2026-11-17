@@ -1,0 +1,11 @@
+# Python temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Excel temporary lock files
+~$*.xlsx
+
+# Local environment / OS files
+.DS_Store
+Thumbs.db

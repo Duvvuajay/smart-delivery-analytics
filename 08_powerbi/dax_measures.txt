@@ -1,0 +1,67 @@
+# DAX Measures – Smart Delivery Analytics
+
+## Overview
+All measures reference the **star‑schema** tables defined in the Power BI data model (see `model.md`).
+The column names mirror the MySQL analytical layer, ensuring that the numbers are identical to the Excel KPI cards.
+
+---
+
+## Module 1 – Delivery Delays
+| Measure | DAX Formula |
+|---------|-------------|
+| **Avg Delivery Time (Mins)** | `Avg Delivery Time (Mins) = AVERAGE(FactOrders[DeliveryDurationMins])` |
+| **Fastest Delivery (Mins)** | `Fastest Delivery (Mins) = MIN(FactOrders[DeliveryDurationMins])` |
+| **Slowest Delivery (Mins)** | `Slowest Delivery (Mins) = MAX(FactOrders[DeliveryDurationMins])` |
+| **On‑Time Delivery %** | `On‑Time Delivery % = DIVIDE( CALCULATE(COUNTROWS(FactOrders), FactOrders[Status] = "Delivered" && FactOrders[DeliveryDurationMins] <= 30), CALCULATE(COUNTROWS(FactOrders), FactOrders[Status] = "Delivered"), 0 )` |
+| **Delayed Orders %** | `Delayed Orders % = 1 - [On‑Time Delivery %]` |
+| **Monthly Delivery Trend** (line chart) | `Monthly Delivery Trend = AVERAGEX( VALUES(DimDate[MonthName]), [Avg Delivery Time (Mins)] )` |
+| **Partner Delivery Efficiency** | `Partner Delivery Efficiency = AVERAGE(FactOrders[DeliveryDurationMins])` |
+
+---
+
+## Module 2 – Order Cancellations
+| Measure | DAX Formula |
+|---------|-------------|
+| **Total Orders** | `Total Orders = CALCULATE( COUNTROWS(FactOrders), FactOrders[Status] <> "Cancelled" )` |
+| **Cancelled Orders** | `Cancelled Orders = CALCULATE( COUNTROWS(FactOrders), FactOrders[Status] = "Cancelled" )` |
+| **Cancellation Rate %** | `Cancellation Rate % = DIVIDE( [Cancelled Orders], CALCULATE( COUNTROWS(FactOrders) ), 0 )` |
+| **City Cancellation %** (by city) | `City Cancellation % = DIVIDE( CALCULATE( [Cancelled Orders], ALLSELECTED( DimCustomer[City] ) ), CALCULATE( [Total Orders], ALLSELECTED( DimCustomer[City] ) ), 0 )` |
+| **Restaurant Cancellation %** | `Restaurant Cancellation % = DIVIDE( CALCULATE( [Cancelled Orders], ALLSELECTED( DimRestaurant[RestaurantID] ) ), CALCULATE( [Total Orders], ALLSELECTED( DimRestaurant[RestaurantID] ) ), 0 )` |
+| **Peak Cancellation Hour** | `Peak Cancellation Hour = TOPN(1, ADDCOLUMNS( VALUES(DimDate[HourOfDay]), "Cancellations", CALCULATE( [Cancelled Orders] ) ), [Cancellations], DESC )` |
+| **Cancellation vs Delivery Delay Correlation** (visual only) | `Cancellation‑Delay Correlation = CALCULATE( AVERAGE(FactOrders[DeliveryDurationMins]), FactOrders[Status] = "Cancelled" )` |
+
+---
+
+## Module 3 – Revenue Optimisation
+| Measure | DAX Formula |
+|---------|-------------|
+| **Total Revenue** | `Total Revenue = SUMX( FactOrders, FactOrders[OrderAmount] + FactOrders[DeliveryFee] )` |
+| **Revenue by Restaurant** | `Revenue by Restaurant = SUMX( FactOrders, FactOrders[OrderAmount] + FactOrders[DeliveryFee] )` |
+| **Revenue by City** | `Revenue by City = CALCULATE( [Total Revenue], ALLSELECTED( DimCustomer[City] ) )` |
+| **Average Order Value (AOV)** | `Average Order Value = AVERAGE(FactOrders[OrderAmount])` |
+| **Delivery Fee Share %** | `Delivery Fee Share % = DIVIDE( SUM(FactOrders[DeliveryFee]), [Total Revenue], 0 )` |
+| **Payment Method Share %** (pie) | `Payment Method Share % = DIVIDE( SUM(FactPayments[Amount]), CALCULATE( SUM(FactPayments[Amount]) ), 0 )` |
+| **Monthly Revenue Trend** | `Monthly Revenue = CALCULATE( [Total Revenue], VALUES(DimDate[MonthName]) )` |
+| **MoM Growth %** | `MoM Growth % = VAR CurrentMonth = MAX( DimDate[MonthKey] )
+VAR PrevMonth = CALCULATE( MAX( DimDate[MonthKey] ), FILTER( ALL( DimDate ), DimDate[MonthKey] = CurrentMonth - 1 ) )
+RETURN DIVIDE( CALCULATE( [Total Revenue], DimDate[MonthKey] = CurrentMonth ) - CALCULATE( [Total Revenue], DimDate[MonthKey] = PrevMonth ), CALCULATE( [Total Revenue], DimDate[MonthKey] = PrevMonth ), 0 )` |
+
+---
+
+## Executive KPI Card Set (for the Dashboard)
+| KPI Card | Measure Used |
+|----------|--------------|
+| **Overall Avg Delivery Time** | `[Avg Delivery Time (Mins)]` |
+| **Overall On‑Time %** | `[On‑Time Delivery %]` |
+| **Overall Cancellation Rate** | `[Cancellation Rate %]` |
+| **Total Revenue (YTD)** | `CALCULATE( [Total Revenue], FILTER( ALL( DimDate ), DimDate[Year] = MAX( DimDate[Year] ) ) )` |
+| **Top‑Performing City (Revenue)** | `TOPN(1, VALUES( DimCustomer[City] ), [Revenue by City] )` |
+| **Top‑Performing Partner (Efficiency)** | `TOPN(1, VALUES( DimPartner[PartnerName] ), [Partner Delivery Efficiency] )` |
+
+---
+
+**Note** – All measures are written to be **filter‑aware**, so slicers on city, restaurant, partner, date range, or payment mode automatically affect the results.
+
+---
+
+*Save this file as `08_powerbi/dax_measures.txt` and copy the snippets into Power BI’s **Modeling → New Measure** dialog.*
